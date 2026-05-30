@@ -1,9 +1,14 @@
+"""
+CLI command interface for `kb-clipboard`.
+Provides endpoints to watch, start, stop, query status, serve, install autostart,
+and import legacy JSON history.
+"""
+
 import os
 import signal
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 import typer
 from kb_core.config import Config
@@ -17,7 +22,15 @@ PID_FILE = config.root / "clipboard_watcher.pid"
 
 
 def is_pid_running(pid: int) -> bool:
-    """Check if process is running on Windows/Linux/macOS using signal 0."""
+    """
+    Check if a process with a given PID is currently active.
+
+    Args:
+        pid (int): The process ID to inspect.
+
+    Returns:
+        bool: True if process is active, False otherwise.
+    """
     if pid <= 0:
         return False
     try:
@@ -36,8 +49,14 @@ def watch(
         help="Polling interval in seconds.",
     )
 ):
-    """Start the clipboard watcher synchronously in the foreground."""
+    """
+    Start the clipboard watcher synchronously in the foreground.
+
+    Args:
+        interval (float): Polling delay between clipboard updates. Defaults to 0.2.
+    """
     from .watcher import run_watcher
+
     try:
         run_watcher(poll_interval=interval)
     except KeyboardInterrupt:
@@ -48,7 +67,10 @@ def watch(
 
 @kb_clipboard_cli.command("start")
 def start():
-    """Start the clipboard watcher in the background (detached process)."""
+    """
+    Start the clipboard watcher in the background as a detached silent process.
+    Uses pythonw.exe on Windows to prevent console windows from opening.
+    """
     # Create config and root directories if they don't exist
     config.root.mkdir(parents=True, exist_ok=True)
 
@@ -61,9 +83,15 @@ def start():
         except ValueError:
             pass
 
-    # Spawn background process running: python -c "import kb_clipboard.watcher; kb_clipboard.watcher.run_watcher()"
+    # Find the pythonw.exe silent interpreter on Windows
+    executable = sys.executable
+    if sys.platform == "win32" and executable.endswith("python.exe"):
+        w_executable = executable[:-10] + "pythonw.exe"
+        if Path(w_executable).exists():
+            executable = w_executable
+
     project_dir = Path(__file__).resolve().parent.parent.parent
-    
+
     # Detach flags for Windows
     creationflags = 0
     if sys.platform == "win32":
@@ -72,7 +100,11 @@ def start():
 
     try:
         proc = subprocess.Popen(
-            [sys.executable, "-c", "import kb_clipboard.watcher; kb_clipboard.watcher.run_watcher()"],
+            [
+                executable,
+                "-c",
+                "import kb_clipboard.watcher; kb_clipboard.watcher.run_watcher()",
+            ],
             cwd=str(project_dir),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -87,7 +119,10 @@ def start():
 
 @kb_clipboard_cli.command("stop")
 def stop():
-    """Stop the background clipboard watcher."""
+    """
+    Stop the background clipboard watcher process.
+    Cleans up the PID file.
+    """
     if not PID_FILE.exists():
         typer.echo("No active clipboard watcher process found (no PID file).")
         return
@@ -96,15 +131,15 @@ def stop():
         pid = int(PID_FILE.read_text().strip())
         if is_pid_running(pid):
             typer.echo(f"Terminating clipboard watcher process {pid}...")
-            # Try gentle SIGTERM first, then taskkill on Windows if needed
             try:
                 os.kill(pid, signal.SIGTERM)
             except Exception:
                 pass
-            
+
             # Wait briefly and verify shutdown
             for _ in range(10):
                 import time
+
                 if not is_pid_running(pid):
                     break
                 time.sleep(0.1)
@@ -112,13 +147,19 @@ def stop():
             # If still running, force termination
             if is_pid_running(pid):
                 if sys.platform == "win32":
-                    subprocess.run(["taskkill", "/F", "/PID", str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    subprocess.run(
+                        ["taskkill", "/F", "/PID", str(pid)],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
                 else:
                     os.kill(pid, signal.SIGKILL)
-            
+
             typer.echo("Clipboard watcher stopped.")
         else:
-            typer.echo(f"Watcher process {pid} is not running. Cleaning up stale PID file.")
+            typer.echo(
+                f"Watcher process {pid} is not running. Cleaning up stale PID file."
+            )
     except ValueError:
         typer.echo("Stale PID file detected. Cleaning up.")
     except Exception as e:
@@ -129,7 +170,9 @@ def stop():
 
 @kb_clipboard_cli.command("status")
 def status():
-    """Get the status of the background clipboard watcher."""
+    """
+    Query the status of the background clipboard watcher.
+    """
     if not PID_FILE.exists():
         typer.echo("Clipboard watcher is stopped.")
         return
@@ -152,7 +195,12 @@ def serve(
         help="Run in development mode (pointing to localhost:3000 instead of built assets)",
     )
 ):
-    """Launch the Electron desktop application to browse clipboard history."""
+    """
+    Launch the Electron desktop application to browse clipboard history.
+
+    Args:
+        dev (bool): Set to True to target the active Vite dev server. Defaults to False.
+    """
     desktop_dir = Path(__file__).resolve().parent.parent.parent / "desktop"
     typer.echo("Launching Electron application...")
 
@@ -172,6 +220,150 @@ def serve(
         )
     except Exception as e:
         typer.echo(f"Error launching Electron: {e}")
+
+
+@kb_clipboard_cli.command("install")
+def install():
+    """
+    Install the clipboard watcher to start automatically on Windows logon.
+    Creates a silent batch script shortcut in the Windows Startup directory.
+    """
+    if sys.platform != "win32":
+        typer.echo("Autostart installation is currently only supported on Windows.")
+        raise typer.Exit(code=1)
+
+    startup_dir = (
+        Path.home()
+        / "AppData"
+        / "Roaming"
+        / "Microsoft"
+        / "Windows"
+        / "Start Menu"
+        / "Programs"
+        / "Startup"
+    )
+    startup_dir.mkdir(parents=True, exist_ok=True)
+
+    # Resolve the pythonw.exe path for silent execution
+    executable = sys.executable
+    if executable.endswith("python.exe"):
+        w_executable = executable[:-10] + "pythonw.exe"
+        if Path(w_executable).exists():
+            executable = w_executable
+
+    project_dir = Path(__file__).resolve().parent.parent.parent
+    startup_script = startup_dir / "start_kb_clipboard.cmd"
+
+    # Script starts pythonw detached
+    script_content = f'@echo off\nstart "" "{executable}" -c "import kb_clipboard.watcher; kb_clipboard.watcher.run_watcher()"\n'
+    try:
+        startup_script.write_text(script_content)
+        typer.echo(f"Successfully installed startup script at: {startup_script}")
+    except Exception as e:
+        typer.echo(f"Failed to install startup script: {e}")
+
+
+@kb_clipboard_cli.command("import-json")
+def import_json(
+    json_file: str = typer.Argument(..., help="Path to the legacy exported JSON file.")
+):
+    """
+    Import legacy clipboard history exported from the former clipboard manager.
+    Recalculates unique hashes and imports all records cleanly.
+
+    Args:
+        json_file (str): Path to the legacy JSON backup.
+    """
+    import json
+    import base64
+    from .watcher import init_db, hash_content
+
+    file_path = Path(json_file)
+    if not file_path.exists():
+        typer.echo(f"Error: Exported JSON file not found at {json_file}")
+        raise typer.Exit(code=1)
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        typer.echo(f"Error reading JSON file: {e}")
+        raise typer.Exit(code=1)
+
+    items = data.get("items", [])
+    if not items:
+        typer.echo("No items found to import in the JSON file.")
+        return
+
+    db = config.get_db()
+    init_db(db)
+    conn = db.conn
+    cursor = conn.cursor()
+
+    imported_count = 0
+    skipped_count = 0
+
+    typer.echo(f"Importing {len(items)} items into {config.db_path}...")
+
+    with typer.progressbar(items, label="Processing") as progress:
+        for item in progress:
+            content = item.get("content", "")
+            if not content:
+                continue
+
+            content_hash = hash_content(content)
+
+            # Check if exists to prevent duplicates
+            cursor.execute(
+                "SELECT id FROM clipboard_history WHERE content_hash = ?",
+                (content_hash,),
+            )
+            row = cursor.fetchone()
+
+            if row:
+                skipped_count += 1
+                continue
+
+            # Decode base64 thumbnail string to bytes
+            thumb_b64 = item.get("thumbnail")
+            thumbnail = None
+            if thumb_b64:
+                try:
+                    thumbnail = base64.b64decode(thumb_b64)
+                except Exception:
+                    pass
+
+            is_favorite = 1 if item.get("is_favorite") else 0
+            access_count = item.get("access_count", 0)
+            backed_up = 1 if item.get("backed_up") else 0
+            timestamp = item.get("timestamp")
+
+            cursor.execute(
+                """
+                INSERT INTO clipboard_history
+                (content, content_hash, content_type, file_path, file_size, mime_type, thumbnail, timestamp, is_favorite, access_count, backed_up)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    content,
+                    content_hash,
+                    item.get("content_type", "text"),
+                    item.get("file_path"),
+                    item.get("file_size"),
+                    item.get("mime_type"),
+                    thumbnail,
+                    timestamp,
+                    is_favorite,
+                    access_count,
+                    backed_up,
+                ),
+            )
+            imported_count += 1
+
+    conn.commit()
+    typer.echo(
+        f"Successfully imported {imported_count} items (skipped {skipped_count} duplicates)."
+    )
 
 
 if __name__ == "__main__":

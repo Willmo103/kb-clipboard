@@ -1,3 +1,8 @@
+"""
+Clipboard watcher service for `kb-clipboard`.
+Handles Windows clipboard monitoring, data format parsing, and SQLite persistence.
+"""
+
 import base64
 import hashlib
 import io
@@ -24,12 +29,20 @@ else:
 
 
 def init_db(db) -> None:
-    """Initialize the SQLite database schema and indexes."""
-    # We use raw sql on the connection to set up tables and indexes
+    """
+    Initialize the SQLite database schema and indexes for clipboard history.
+
+    Args:
+        db (sqlite_utils.Database): The database instance to configure.
+
+    Returns:
+        None
+    """
     conn = db.conn
     cursor = conn.cursor()
-    
-    cursor.execute("""
+
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS clipboard_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             content TEXT NOT NULL,
@@ -44,18 +57,37 @@ def init_db(db) -> None:
             access_count INTEGER DEFAULT 0,
             backed_up INTEGER DEFAULT 0
         )
-    """)
-    
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON clipboard_history(timestamp DESC)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_hash ON clipboard_history(content_hash)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_favorite ON clipboard_history(is_favorite)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_type ON clipboard_history(content_type)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_backed_up ON clipboard_history(backed_up)")
+    """
+    )
+
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_timestamp ON clipboard_history(timestamp DESC)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_hash ON clipboard_history(content_hash)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_favorite ON clipboard_history(is_favorite)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_type ON clipboard_history(content_type)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_backed_up ON clipboard_history(backed_up)"
+    )
     conn.commit()
 
 
 def hash_content(content: str) -> str:
-    """Generate SHA-256 hash of the content string."""
+    """
+    Generate SHA-256 hash of the content string.
+
+    Args:
+        content (str): The content string to hash.
+
+    Returns:
+        str: The hex digest of the SHA-256 hash. Returns empty string if hashing fails.
+    """
     try:
         return hashlib.sha256(content.encode("utf-8", errors="ignore")).hexdigest()
     except Exception:
@@ -63,7 +95,16 @@ def hash_content(content: str) -> str:
 
 
 def should_skip_self_copy(content_hash: str) -> bool:
-    """Check if the clipboard update is a self-copy that should be skipped."""
+    """
+    Check if the clipboard update is a self-copy that should be skipped.
+    Reads ~/.kb/clip_skip.txt to verify if the client requested a copy suppression.
+
+    Args:
+        content_hash (str): The hash of the current clipboard content.
+
+    Returns:
+        bool: True if the clipboard event matches the skip request, False otherwise.
+    """
     skip_file = Path.home() / ".kb" / "clip_skip.txt"
     if skip_file.exists():
         try:
@@ -78,7 +119,13 @@ def should_skip_self_copy(content_hash: str) -> bool:
 
 
 def get_clipboard_data() -> Optional[Dict[str, Any]]:
-    """Retrieve data from Windows clipboard, identifying files, images, or text."""
+    """
+    Retrieve data from Windows clipboard, identifying files, images, or text.
+
+    Returns:
+        Optional[Dict[str, Any]]: Dictionary containing parsed clipboard data and metadata,
+        or None if the clipboard is locked or empty.
+    """
     if not IS_WINDOWS:
         return None
 
@@ -99,7 +146,7 @@ def get_clipboard_data() -> Optional[Dict[str, Any]]:
                     mime, _ = mimetypes.guess_type(f_path)
                     stat = f_path.stat()
                     size = stat.st_size
-                    
+
                     thumbnail = None
                     if mime and mime.startswith("image/"):
                         try:
@@ -111,7 +158,7 @@ def get_clipboard_data() -> Optional[Dict[str, Any]]:
                                 thumbnail = buf.getvalue()
                         except Exception as e:
                             print(f"Error creating file thumbnail: {e}")
-                            
+
                     return {
                         "content": str(f_path),
                         "content_type": "file",
@@ -175,18 +222,28 @@ def get_clipboard_data() -> Optional[Dict[str, Any]]:
 
 
 def run_watcher(poll_interval: float = 0.2) -> None:
-    """Continuously poll the Windows clipboard and persist updates to database."""
+    """
+    Continuously poll the Windows clipboard and persist updates to database.
+
+    Args:
+        poll_interval (float): Number of seconds between clipboard checks. Defaults to 0.2.
+
+    Returns:
+        None
+    """
     print("Initializing clipboard watcher service...")
     config = Config()
-    
+
     # Ensure configs directory exists
     config.configs_dir.mkdir(parents=True, exist_ok=True)
-    
+
     db = config.get_db()
     init_db(db)
-    
+
     last_hash = ""
-    print(f"Watcher active. Monitoring clipboard (interval {poll_interval}s) and saving to: {config.db_path}")
+    print(
+        f"Watcher active. Monitoring clipboard (interval {poll_interval}s) and saving to: {config.db_path}"
+    )
 
     while True:
         try:
@@ -204,32 +261,45 @@ def run_watcher(poll_interval: float = 0.2) -> None:
                     # Persist to DB
                     conn = db.conn
                     cursor = conn.cursor()
-                    cursor.execute("SELECT id FROM clipboard_history WHERE content_hash = ?", (content_hash,))
+                    cursor.execute(
+                        "SELECT id FROM clipboard_history WHERE content_hash = ?",
+                        (content_hash,),
+                    )
                     row = cursor.fetchone()
-                    
+
                     if row:
-                        cursor.execute("""
+                        cursor.execute(
+                            """
                             UPDATE clipboard_history
                             SET timestamp = CURRENT_TIMESTAMP, access_count = access_count + 1
                             WHERE id = ?
-                        """, (row[0],))
-                        print(f"Updated existing clipboard item (Hash: {content_hash[:8]})")
+                        """,
+                            (row[0],),
+                        )
+                        print(
+                            f"Updated existing clipboard item (Hash: {content_hash[:8]})"
+                        )
                     else:
-                        cursor.execute("""
+                        cursor.execute(
+                            """
                             INSERT INTO clipboard_history 
                             (content, content_hash, content_type, file_path, file_size, mime_type, thumbnail)
                             VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """, (
-                            data["content"],
-                            content_hash,
-                            data["content_type"],
-                            data["file_path"],
-                            data["file_size"],
-                            data["mime_type"],
-                            data["thumbnail"]
-                        ))
-                        print(f"Saved new clipboard item of type '{data['content_type']}' (Hash: {content_hash[:8]})")
-                    
+                        """,
+                            (
+                                data["content"],
+                                content_hash,
+                                data["content_type"],
+                                data["file_path"],
+                                data["file_size"],
+                                data["mime_type"],
+                                data["thumbnail"],
+                            ),
+                        )
+                        print(
+                            f"Saved new clipboard item of type '{data['content_type']}' (Hash: {content_hash[:8]})"
+                        )
+
                     conn.commit()
                     last_hash = content_hash
 

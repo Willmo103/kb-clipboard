@@ -254,7 +254,7 @@ export default function App() {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col ${darkMode ? 'dark bg-retro-bg-dark text-retro-text-dark' : 'bg-retro-bg-light text-retro-text-light'} transition-colors duration-200`}>
+    <div className={`h-screen flex flex-col ${darkMode ? 'dark bg-retro-bg-dark text-retro-text-dark' : 'bg-retro-bg-light text-retro-text-light'} transition-colors duration-200 overflow-hidden`}>
       
       {/* Toast Notification */}
       {statusMessage && (
@@ -305,10 +305,10 @@ export default function App() {
       </header>
 
       {/* Main Container */}
-      <div className="flex-1 flex flex-col md:flex-row">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         
         {/* Sidebar */}
-        <aside className="w-full md:w-64 p-6 border-r border-retro-border-light dark:border-retro-border-dark flex flex-col space-y-6">
+        <aside className="w-full md:w-64 p-6 border-r border-retro-border-light dark:border-retro-border-dark flex flex-col space-y-6 md:overflow-y-auto">
           <div className="space-y-2">
             <label className="text-xs font-semibold uppercase tracking-wider opacity-60">Search</label>
             <div className="relative">
@@ -365,7 +365,7 @@ export default function App() {
         </aside>
 
         {/* Content list */}
-        <main className="flex-1 p-6 flex flex-col">
+        <main className="flex-1 p-6 flex flex-col md:overflow-y-auto">
           
           <div className="sm:hidden flex items-center space-x-2 mb-4">
             <button
@@ -399,11 +399,19 @@ export default function App() {
                   className={`group cursor-pointer p-4 bg-retro-panel-light dark:bg-retro-panel-dark border ${selectedItem && selectedItem.id === item.id ? 'border-retro-orange/80 shadow-md' : 'border-retro-border-light dark:border-retro-border-dark'} hover:border-retro-orange/60 dark:hover:border-retro-orange/60 rounded transition-all duration-150 flex items-center justify-between`}
                 >
                   <div className="flex items-center space-x-4 min-w-0 flex-1">
-                    <div className="flex-shrink-0 p-2 bg-retro-bg-light dark:bg-retro-bg-dark rounded text-retro-orange">
+                    <div className="flex-shrink-0 w-9 h-9 bg-retro-bg-light dark:bg-retro-bg-dark rounded text-retro-orange flex items-center justify-center overflow-hidden">
                       {item.content_type === 'file' ? (
                         <Folder size={18} />
                       ) : item.content_type === 'image' ? (
-                        <ImageIcon size={18} />
+                        item.thumbnail ? (
+                          <img 
+                            src={`data:image/png;base64,${item.thumbnail}`} 
+                            alt="thumbnail" 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <ImageIcon size={18} />
+                        )
                       ) : isUrl(item.content) ? (
                         <LinkIcon size={18} className="text-retro-blue" />
                       ) : (

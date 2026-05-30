@@ -2,6 +2,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+
 def run_step(cmd: list[str], description: str, cwd: Path = None):
     print(f"\n=========================================")
     print(f"Step: {description}")
@@ -15,22 +16,34 @@ def run_step(cmd: list[str], description: str, cwd: Path = None):
         print(f"Command returned non-zero exit code: {e.returncode}")
         sys.exit(e.returncode)
     except FileNotFoundError:
-        print(f"\n[ERROR] Command not found. Make sure {' '.join(cmd)} is available in path.")
+        print(
+            f"\n[ERROR] Command not found. Make sure {' '.join(cmd)} is available in path."
+        )
         sys.exit(1)
+
 
 def main():
     import os
+
     os.environ["USE_SYSTEM_SIGNCODE"] = "true"
     project_dir = Path(__file__).resolve().parent
     desktop_dir = project_dir / "desktop"
-    
+
     # 1. Build & Package React/Electron UI
     print("Compiling React & packaging Electron UI...")
     run_step(["npm", "install"], "Installing node dependencies", cwd=desktop_dir)
-    run_step(["npm", "run", "dist"], "Compiling and building Electron standalone package", cwd=desktop_dir)
+    run_step(
+        ["npm", "run", "dist"],
+        "Compiling and building Electron standalone package",
+        cwd=desktop_dir,
+    )
 
     # 2. Sync python project environment
-    run_step(["uv", "sync"], "Synchronizing python environment & dependencies", cwd=project_dir)
+    run_step(
+        ["uv", "sync"],
+        "Synchronizing python environment & dependencies",
+        cwd=project_dir,
+    )
 
     # 3. Run unit tests
     run_step(["uv", "run", "pytest"], "Running pytest suite", cwd=project_dir)
@@ -39,6 +52,7 @@ def main():
     run_step(["uv", "build"], "Building source and wheel packages", cwd=project_dir)
 
     print("\n[SUCCESS] Build pipeline completed successfully!")
+
 
 if __name__ == "__main__":
     main()
