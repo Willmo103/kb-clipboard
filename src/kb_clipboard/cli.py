@@ -34,10 +34,14 @@ def is_pid_running(pid: int) -> bool:
     if pid <= 0:
         return False
     import sys
+
     if sys.platform == "win32":
         import ctypes
+
         PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-        handle = ctypes.windll.kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+        handle = ctypes.windll.kernel32.OpenProcess(
+            PROCESS_QUERY_LIMITED_INFORMATION, False, pid
+        )
         if handle == 0:
             return False
         ctypes.windll.kernel32.CloseHandle(handle)
