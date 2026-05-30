@@ -1,2 +1,5 @@
+from .cli import kb_clipboard_cli
+
 def main() -> None:
-    print("Hello from kb-clipboard!")
+    """Entry point for running the CLI."""
+    kb_clipboard_cli()

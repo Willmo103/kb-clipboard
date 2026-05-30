@@ -1,17 +1,33 @@
 [project]
 name = "kb-clipboard"
 version = "0.1.0"
-description = "Add your description here"
+description = "Clipboard manager for the Knowledge-Base"
 readme = "README.md"
 authors = [
     { name = "WIll Morris", email = "88165849+Willmo103@users.noreply.github.com" }
 ]
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "kb-core",
+    "pydantic>=2.13.4",
+    "sqlite-utils>=3.39",
+    "typer>=0.21.2",
+    "pywin32>=306; sys_platform == 'win32'",
+    "Pillow>=10.0.0",
+]
 
 [project.scripts]
-kb-clipboard = "kb_clipboard:main"
+kb-clipboard = "kb_clipboard.cli:kb_clipboard_cli"
 
 [build-system]
 requires = ["uv_build>=0.9.26,<0.10.0"]
 build-backend = "uv_build"
+
+[tool.uv.sources]
+kb-core = { git = "https://github.com/Willmo103/kb-core.git" }
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-mock>=3.14.0",
+]
