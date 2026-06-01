@@ -224,13 +224,21 @@ def serve(
     else:
         env["NODE_ENV"] = "production"
 
+    creationflags = 0
+    if sys.platform == "win32":
+        # DETACHED_PROCESS = 0x00000008, CREATE_NO_WINDOW = 0x08000000
+        creationflags = 0x00000008 | 0x08000000
+
     try:
-        subprocess.run(
+        subprocess.Popen(
             ["npm", "start"],
             cwd=desktop_dir,
-            check=True,
             shell=sys.platform == "win32",
             env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=creationflags,
+            close_fds=True,
         )
     except Exception as e:
         typer.echo(f"Error launching Electron: {e}")

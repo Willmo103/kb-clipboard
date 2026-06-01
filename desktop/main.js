@@ -35,6 +35,7 @@ function createWindow() {
     // Earth-toned initial background (cream/warm paper)
     backgroundColor: '#F4EFEA',
     title: 'kb-clipboard',
+    icon: path.join(__dirname, 'build', 'icon.png'),
     show: false // Start hidden, display on tray activation or ready
   });
 

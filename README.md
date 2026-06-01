@@ -1,4 +1,4 @@
-# kb-clipboard
+# <img src="assets/kb-clipboard-icon.svg" width="48" height="48" valign="middle" style="margin-right: 10px;"/> kb-clipboard
 
 Clipboard manager for the Knowledge-Base (`kb`) stack.
 

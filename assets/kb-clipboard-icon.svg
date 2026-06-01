@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" fill="#F4EFEA" rx="120"/>
+  <!-- Clipboard Board -->
+  <rect x="262" y="250" width="500" height="600" rx="30" fill="#8C7A6B" />
+  <!-- Clipboard Paper -->
+  <rect x="312" y="320" width="400" height="480" rx="10" fill="#FDFBF7" />
+  <!-- Clipboard Clip -->
+  <rect x="412" y="180" width="200" height="100" rx="15" fill="#5C4F4F" />
+  <!-- Text 'kb' -->
+  <text x="512" y="600" font-family="Georgia, serif" font-size="140" font-weight="bold" fill="#D35400" text-anchor="middle">kb</text>
+</svg>
