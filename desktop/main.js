@@ -89,11 +89,8 @@ function toggleWindow() {
 }
 
 function setupTray() {
-  // Create simple 16x16 icon programmatically if icon.png is missing
-  const nativeImage = require('electron').nativeImage;
-  const iconPath = path.join(__dirname, 'icon.png');
-  const icon = fs.existsSync(iconPath) ? nativeImage.createFromPath(iconPath) : nativeImage.createEmpty();
-  const trayIcon = icon.isEmpty() ? nativeImage.createFromBuffer(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMElEQVR42mNkYPj/nwGPGEhAhAEPwKihBFAwGgYMAwa4g1EwCkaigFA5mBkwDAAAGH1W2S40Yj0AAAAASUVORK5CYII=', 'base64')) : icon;
+  const iconPath = path.join(__dirname, 'tray-icon.png');
+  const trayIcon = fs.existsSync(iconPath) ? iconPath : path.join(__dirname, 'package.json');
   
   tray = new Tray(trayIcon);
   tray.setToolTip('kb-clipboard');
