@@ -63,6 +63,29 @@ def main():
         cwd=desktop_dir,
     )
 
+    # 1b. Copy compiled Electron executable to package source
+    import shutil
+    dest_dir = project_dir / "src" / "kb_clipboard" / "desktop_dist"
+    if dest_dir.exists():
+        shutil.rmtree(dest_dir)
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    
+    desktop_dist = desktop_dir / "dist"
+    candidates = list(desktop_dist.glob("kb-clipboard*.exe")) + \
+                 list(desktop_dist.glob("kb-clipboard*.AppImage")) + \
+                 list(desktop_dist.glob("kb-clipboard*.dmg"))
+    if not candidates:
+        candidates = [p for p in desktop_dist.iterdir() if p.is_file() and p.suffix in ('.exe', '.AppImage', '.dmg')]
+        
+    if candidates:
+        src_exe = candidates[0]
+        ext = src_exe.suffix
+        dest_exe = dest_dir / f"kb-clipboard{ext}"
+        print(f"\nPackaging built Electron executable: {src_exe.name} -> {dest_exe}")
+        shutil.copy2(src_exe, dest_exe)
+    else:
+        print("\n[WARNING] No compiled Electron executable found to package.")
+
     # 2. Sync python project environment
     run_step(
         ["uv", "sync"],
