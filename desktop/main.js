@@ -86,6 +86,12 @@ function createWindow() {
     return false;
   });
 
+  // Intercept minimize event to collapse to system tray (hide instead of standard minimize)
+  mainWindow.on('minimize', (event) => {
+    event.preventDefault();
+    mainWindow.hide();
+  });
+
   // Auto-hide when losing focus, matching the PyQt eventFilter Deactivate behavior
   mainWindow.on('blur', () => {
     if (!isDev && mainWindow.isVisible()) {
@@ -102,6 +108,7 @@ function showWindow() {
   if (!mainWindow) {
     createWindow();
   } else {
+    if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.show();
     mainWindow.focus();
   }
@@ -119,15 +126,19 @@ function setupTray() {
   const iconPath = path.join(__dirname, 'tray-icon.png');
   const trayIcon = fs.existsSync(iconPath) ? iconPath : path.join(__dirname, 'package.json');
   
-  tray = new Tray(trayIcon);
-  tray.setToolTip('kb-clipboard');
-  
-  tray.on('click', () => {
-    toggleWindow();
-  });
-  
-  updateTrayMenu();
-  setInterval(updateTrayMenu, 3000); // Keep tray menu synchronized with DB changes
+  try {
+    tray = new Tray(trayIcon);
+    tray.setToolTip('kb-clipboard');
+    
+    tray.on('click', () => {
+      toggleWindow();
+    });
+    
+    updateTrayMenu();
+    setInterval(updateTrayMenu, 3000); // Keep tray menu synchronized with DB changes
+  } catch (e) {
+    console.error('Failed to create tray icon:', e);
+  }
 }
 
 function updateTrayMenu() {
