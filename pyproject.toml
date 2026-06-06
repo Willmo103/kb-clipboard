@@ -1,6 +1,6 @@
 [project]
 name = "kb-clipboard"
-version = "0.1.8"
+version = "0.1.9"
 description = "Clipboard manager for the Knowledge-Base"
 readme = "README.md"
 authors = [
