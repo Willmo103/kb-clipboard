@@ -1,6 +1,3 @@
-import os
-from pathlib import Path
-import pytest
 import sqlite_utils
 
 from kb_clipboard.watcher import hash_content, should_skip_self_copy, init_db
