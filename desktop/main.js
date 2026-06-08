@@ -17,6 +17,8 @@ if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
 
+const ignoreFilePath = path.join(os.homedir(), '.kb', 'configs', 'clipboard_ignore.txt');
+
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('Database connection error:', err);
@@ -381,6 +383,32 @@ ipcMain.handle('export-to-json', async (event, { favoritesOnly }) => {
 
   fs.writeFileSync(filePath, JSON.stringify(exportData, null, 2), 'utf8');
   return { status: 'success', count: items.length, filePath };
+});
+
+ipcMain.handle('get-ignore-patterns', async () => {
+  if (fs.existsSync(ignoreFilePath)) {
+    try {
+      return fs.readFileSync(ignoreFilePath, 'utf8');
+    } catch (err) {
+      console.error('Error reading clipboard_ignore.txt:', err);
+      return '';
+    }
+  }
+  return '';
+});
+
+ipcMain.handle('save-ignore-patterns', async (event, content) => {
+  const dir = path.dirname(ignoreFilePath);
+  try {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(ignoreFilePath, content, 'utf8');
+    return { status: 'success' };
+  } catch (err) {
+    console.error('Error saving clipboard_ignore.txt:', err);
+    throw err;
+  }
 });
 
 // App lifecycle

@@ -63,7 +63,7 @@ def watch(
         "--interval",
         "-i",
         help="Polling interval in seconds.",
-    )
+    ),
 ):
     """
     Start the clipboard watcher synchronously in the foreground.
@@ -209,7 +209,7 @@ def serve(
         False,
         "--dev",
         help="Run in development mode (pointing to localhost:3000 instead of built assets)",
-    )
+    ),
 ):
     """
     Launch the Electron desktop application to browse clipboard history.
@@ -218,6 +218,7 @@ def serve(
         dev (bool): Set to True to target the active Vite dev server. Defaults to False.
     """
     import shutil
+
     package_dir = Path(__file__).resolve().parent
     src_desktop_dir = package_dir.parent.parent / "desktop"
 
@@ -265,12 +266,14 @@ def serve(
         # Check standard installation locations or packaged desktop_dist folder
         base_name = "kb-clipboard.exe" if sys.platform == "win32" else "kb-clipboard"
         bundled_candidate = package_dir / "desktop_dist" / base_name
-        
+
         # User app data local program files location (NSIS)
         local_app_data = os.environ.get("LOCALAPPDATA", "")
         install_candidate = None
         if sys.platform == "win32" and local_app_data:
-            install_candidate = Path(local_app_data) / "Programs" / "kb-clipboard" / "kb-clipboard.exe"
+            install_candidate = (
+                Path(local_app_data) / "Programs" / "kb-clipboard" / "kb-clipboard.exe"
+            )
 
         if bundled_candidate.exists():
             target_exe = bundled_candidate
@@ -278,23 +281,39 @@ def serve(
             target_exe = install_candidate
 
     if not target_exe:
-        typer.echo("Could not find built Electron application executable (kb-clipboard-desktop).")
-        typer.echo("Attempting to download prebuilt desktop binary from the latest GitHub release...")
+        typer.echo(
+            "Could not find built Electron application executable (kb-clipboard-desktop)."
+        )
+        typer.echo(
+            "Attempting to download prebuilt desktop binary from the latest GitHub release..."
+        )
         bin_dir = Path.home() / ".kb" / "bin"
-        dest_name = "kb-clipboard-desktop.exe" if sys.platform == "win32" else "kb-clipboard-desktop"
+        dest_name = (
+            "kb-clipboard-desktop.exe"
+            if sys.platform == "win32"
+            else "kb-clipboard-desktop"
+        )
         dest_exe = bin_dir / dest_name
-        asset_pattern = r"kb-clipboard.*\.exe" if sys.platform == "win32" else r"kb-clipboard.*"
+        asset_pattern = (
+            r"kb-clipboard.*\.exe" if sys.platform == "win32" else r"kb-clipboard.*"
+        )
         success = download_github_release_asset(
             repo="Willmo103/kb-clipboard",
             asset_pattern=asset_pattern,
-            dest_path=dest_exe
+            dest_path=dest_exe,
         )
         if success:
             target_exe = dest_exe
-            typer.echo(f"Successfully downloaded latest desktop binary to: {target_exe}")
+            typer.echo(
+                f"Successfully downloaded latest desktop binary to: {target_exe}"
+            )
         else:
-            typer.echo("Error: Could not download prebuilt desktop binary from GitHub Releases.")
-            typer.echo("Please run 'kb-clipboard install' first to install the desktop assets.")
+            typer.echo(
+                "Error: Could not download prebuilt desktop binary from GitHub Releases."
+            )
+            typer.echo(
+                "Please run 'kb-clipboard install' first to install the desktop assets."
+            )
             raise typer.Exit(code=1)
 
     typer.echo(f"Launching Electron application: {target_exe}")
@@ -312,7 +331,7 @@ def serve(
             stderr=subprocess.DEVNULL,
             creationflags=creationflags,
             close_fds=True,
-            env=env
+            env=env,
         )
     except Exception as e:
         typer.echo(f"Error executing Electron binary: {e}")
@@ -331,6 +350,7 @@ def install():
     """
     # 1. Run DB migration/initialization
     from .watcher import init_db
+
     db = config.get_db()
     init_db(db)
     typer.echo("Database migrations successfully executed.")
@@ -343,7 +363,11 @@ def install():
     package_dir = Path(__file__).resolve().parent
     base_name = "kb-clipboard.exe" if sys.platform == "win32" else "kb-clipboard"
     bundled_exe = package_dir / "desktop_dist" / base_name
-    dest_name = "kb-clipboard-desktop.exe" if sys.platform == "win32" else "kb-clipboard-desktop"
+    dest_name = (
+        "kb-clipboard-desktop.exe"
+        if sys.platform == "win32"
+        else "kb-clipboard-desktop"
+    )
     dest_exe = bin_dir / dest_name
 
     if bundled_exe.exists():
@@ -354,24 +378,35 @@ def install():
             typer.echo(f"Failed to copy Electron binary to bin: {e}")
     else:
         typer.echo("No bundled Electron application binary found to install.")
-        typer.echo("Downloading the prebuilt desktop binary from the latest GitHub release...")
-        asset_pattern = r"kb-clipboard.*\.exe" if sys.platform == "win32" else r"kb-clipboard.*"
+        typer.echo(
+            "Downloading the prebuilt desktop binary from the latest GitHub release..."
+        )
+        asset_pattern = (
+            r"kb-clipboard.*\.exe" if sys.platform == "win32" else r"kb-clipboard.*"
+        )
         success = download_github_release_asset(
             repo="Willmo103/kb-clipboard",
             asset_pattern=asset_pattern,
-            dest_path=dest_exe
+            dest_path=dest_exe,
         )
         if success:
-            typer.echo(f"Successfully downloaded and installed latest desktop binary to: {dest_exe}")
+            typer.echo(
+                f"Successfully downloaded and installed latest desktop binary to: {dest_exe}"
+            )
         else:
-            typer.echo("Warning: Failed to download prebuilt desktop binary from GitHub Releases.")
+            typer.echo(
+                "Warning: Failed to download prebuilt desktop binary from GitHub Releases."
+            )
 
     # 4. Add bin directory to PATH
     if sys.platform == "win32":
         import winreg
         import ctypes
+
         try:
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Environment", 0, winreg.KEY_ALL_ACCESS)
+            key = winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER, r"Environment", 0, winreg.KEY_ALL_ACCESS
+            )
             path_val, _ = winreg.QueryValueEx(key, "Path")
             paths = [p.strip() for p in path_val.split(";")]
             bin_path_str = str(bin_dir)
@@ -382,7 +417,9 @@ def install():
                 # Broadcast WM_SETTINGCHANGE to notify running shells
                 HWND_BROADCAST = 0xFFFF
                 WM_SETTINGCHANGE = 0x001A
-                ctypes.windll.user32.SendMessageW(HWND_BROADCAST, WM_SETTINGCHANGE, 0, "Environment")
+                ctypes.windll.user32.SendMessageW(
+                    HWND_BROADCAST, WM_SETTINGCHANGE, 0, "Environment"
+                )
                 typer.echo(f"Added {bin_dir} to User PATH.")
             else:
                 typer.echo(f"{bin_dir} is already in PATH.")
@@ -416,7 +453,9 @@ def install():
         $Shortcut.Save()
         """
         try:
-            subprocess.run(["powershell", "-Command", ps_cmd], check=True, capture_output=True)
+            subprocess.run(
+                ["powershell", "-Command", ps_cmd], check=True, capture_output=True
+            )
             typer.echo(f"Created desktop shortcut: {shortcut_path}")
         except Exception as e:
             typer.echo(f"Failed to create desktop shortcut: {e}")
@@ -465,12 +504,14 @@ Terminal=false
         except Exception as e:
             typer.echo(f"Failed to install startup script: {e}")
     else:
-        typer.echo("Note: Background daemon autostart configuration is only supported on Windows.")
+        typer.echo(
+            "Note: Background daemon autostart configuration is only supported on Windows."
+        )
 
 
 @kb_clipboard_cli.command("import-json")
 def import_json(
-    json_file: str = typer.Argument(..., help="Path to the legacy exported JSON file.")
+    json_file: str = typer.Argument(..., help="Path to the legacy exported JSON file."),
 ):
     """
     Import legacy clipboard history exported from the former clipboard manager.
@@ -586,6 +627,7 @@ def update():
     typer.echo(f"Latest release version: {tag_name}")
 
     import importlib.metadata
+
     try:
         current_version = "v" + importlib.metadata.version("kb-clipboard")
     except Exception:
@@ -594,15 +636,19 @@ def update():
     typer.echo(f"Current local package version: {current_version}")
 
     bin_dir = Path.home() / ".kb" / "bin"
-    dest_name = "kb-clipboard-desktop.exe" if sys.platform == "win32" else "kb-clipboard-desktop"
+    dest_name = (
+        "kb-clipboard-desktop.exe"
+        if sys.platform == "win32"
+        else "kb-clipboard-desktop"
+    )
     dest_exe = bin_dir / dest_name
 
     typer.echo(f"Downloading prebuilt desktop binary {tag_name}...")
-    asset_pattern = r"kb-clipboard.*\.exe" if sys.platform == "win32" else r"kb-clipboard.*"
+    asset_pattern = (
+        r"kb-clipboard.*\.exe" if sys.platform == "win32" else r"kb-clipboard.*"
+    )
     success = download_github_release_asset(
-        repo="Willmo103/kb-clipboard",
-        asset_pattern=asset_pattern,
-        dest_path=dest_exe
+        repo="Willmo103/kb-clipboard", asset_pattern=asset_pattern, dest_path=dest_exe
     )
     if success:
         typer.echo(f"Successfully updated desktop binary to: {dest_exe}")

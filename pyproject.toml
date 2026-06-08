@@ -30,6 +30,7 @@ kb-core = { git = "https://github.com/Willmo103/kb-core.git" }
 dev = [
     "pytest>=8.0.0",
     "pytest-mock>=3.14.0",
+    "ruff>=0.9.0",
 ]
 
 [tool.uv.build-backend]

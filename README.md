@@ -10,6 +10,8 @@ This application consists of two main components:
 
 To avoid recording duplicates when copying items *from* the history client back to the clipboard, the desktop UI writes the hash to `~/.kb/clip_skip.txt`. The watcher checks this file and suppresses logging for that specific copy action.
 
+Additionally, user-defined ignore patterns can be configured to filter and skip sensitive records (e.g. passwords, API keys) entirely from database storage. These rules are saved in `~/.kb/configs/clipboard_ignore.txt` with one regular expression pattern per line, which can be modified directly or configured via the Settings panel in the desktop application.
+
 ## CLI Usage
 
 Run commands using `uv run kb-clipboard <command>` (or `kb-clipboard` if package is installed in your python environment):

@@ -15,7 +15,8 @@ import {
   Moon, 
   ChevronRight, 
   ExternalLink,
-  Copy
+  Copy,
+  Settings
 } from 'lucide-react';
 
 export default function App() {
@@ -38,6 +39,9 @@ export default function App() {
   // Modals
   const [showClearModal, setShowClearModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [ignorePatternsText, setIgnorePatternsText] = useState('');
+  const [savingSettings, setSavingSettings] = useState(false);
   const [keepFavoritesOnClear, setKeepFavoritesOnClear] = useState(true);
   const [exportOnlyFavorites, setExportOnlyFavorites] = useState(false);
 
@@ -277,6 +281,23 @@ export default function App() {
 
         <div className="flex items-center space-x-3">
           <button
+            onClick={async () => {
+              try {
+                const text = await window.api.getIgnorePatterns();
+                setIgnorePatternsText(text || '');
+                setShowSettingsModal(true);
+              } catch (err) {
+                console.error('Failed to load ignore patterns:', err);
+              }
+            }}
+            className="hidden sm:flex items-center space-x-1 px-3 py-1.5 text-xs bg-retro-panel-light dark:bg-retro-panel-dark border border-retro-border-light dark:border-retro-border-dark hover:border-retro-orange rounded font-semibold transition-colors"
+            title="Ignore Settings"
+          >
+            <Settings size={14} />
+            <span>Settings</span>
+          </button>
+
+          <button
             onClick={() => setShowExportModal(true)}
             className="hidden sm:flex items-center space-x-1 px-3 py-1.5 text-xs bg-retro-panel-light dark:bg-retro-panel-dark border border-retro-border-light dark:border-retro-border-dark hover:border-retro-orange rounded font-semibold transition-colors"
             title="Export History"
@@ -368,6 +389,21 @@ export default function App() {
         <main className="flex-1 p-6 flex flex-col md:overflow-y-auto">
           
           <div className="sm:hidden flex items-center space-x-2 mb-4">
+            <button
+              onClick={async () => {
+                try {
+                  const text = await window.api.getIgnorePatterns();
+                  setIgnorePatternsText(text || '');
+                  setShowSettingsModal(true);
+                } catch (err) {
+                  console.error('Failed to load ignore patterns:', err);
+                }
+              }}
+              className="flex-1 flex items-center justify-center space-x-1 py-2 text-xs bg-retro-panel-light dark:bg-retro-panel-dark border border-retro-border-light dark:border-retro-border-dark rounded font-semibold"
+            >
+              <Settings size={14} />
+              <span>Settings</span>
+            </button>
             <button
               onClick={() => setShowExportModal(true)}
               className="flex-1 flex items-center justify-center space-x-1 py-2 text-xs bg-retro-panel-light dark:bg-retro-panel-dark border border-retro-border-light dark:border-retro-border-dark rounded font-semibold"
@@ -675,6 +711,75 @@ export default function App() {
                 className="px-4 py-2 text-xs bg-retro-orange hover:bg-retro-orange/90 text-white rounded font-semibold transition-colors shadow-sm"
               >
                 Export JSON
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 bg-black/55 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-retro-bg-light dark:bg-retro-bg-dark border border-retro-border-light dark:border-retro-border-dark p-6 rounded shadow-2xl w-full max-w-lg space-y-4">
+            <div className="flex items-center justify-between border-b border-retro-border-light dark:border-retro-border-dark pb-3">
+              <h2 className="text-lg font-bold text-retro-orange flex items-center space-x-2">
+                <Settings size={18} />
+                <span>Ignore Pattern Settings</span>
+              </h2>
+              <button 
+                onClick={() => setShowSettingsModal(false)}
+                className="p-1 hover:bg-retro-panel-light dark:hover:bg-retro-panel-dark rounded-full transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <p className="text-sm opacity-80">
+              Define regular expression patterns to automatically ignore and discard clipboard records (e.g. passwords, sensitive files).
+            </p>
+
+            <textarea
+              value={ignorePatternsText}
+              onChange={(e) => setIgnorePatternsText(e.target.value)}
+              className="w-full h-64 p-3 bg-retro-panel-light dark:bg-retro-panel-dark border border-retro-border-light dark:border-retro-border-dark rounded font-mono text-sm focus:outline-none focus:border-retro-orange resize-y"
+              placeholder="# Example ignore patterns&#10;# Ignore strings containing 'password'&#10;password&#10;# Ignore token keys&#10;[A-Za-z0-9+/]{40}&#10;# Ignore specific file paths&#10;.*\\.env"
+            />
+
+            <div className="bg-retro-panel-light/40 dark:bg-retro-panel-dark/40 border border-retro-border-light/60 dark:border-retro-border-dark/60 p-3 rounded text-xs space-y-1">
+              <div className="font-bold opacity-80 uppercase tracking-wider">Guidelines:</div>
+              <ul className="list-disc pl-4 space-y-1 opacity-75">
+                <li>One regular expression pattern per line.</li>
+                <li>Lines starting with <code className="font-mono bg-stone-250 dark:bg-stone-800 px-1 py-0.5 rounded">#</code> are comments.</li>
+                <li>Blank/empty lines are ignored.</li>
+                <li>Matches are evaluated against texts, file paths, and filenames.</li>
+              </ul>
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-3 border-t border-retro-border-light dark:border-retro-border-dark">
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="px-4 py-2 text-xs border border-retro-border-light dark:border-retro-border-dark hover:bg-retro-panel-light/50 dark:hover:bg-retro-panel-dark/50 rounded font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setSavingSettings(true);
+                  try {
+                    await window.api.saveIgnorePatterns(ignorePatternsText);
+                    showStatus('Ignore patterns saved successfully!');
+                    setShowSettingsModal(false);
+                  } catch (err) {
+                    console.error('Failed to save ignore patterns:', err);
+                    alert('Error saving patterns: ' + err.message);
+                  } finally {
+                    setSavingSettings(false);
+                  }
+                }}
+                disabled={savingSettings}
+                className="px-4 py-2 text-xs bg-retro-orange hover:bg-retro-orange/90 text-white rounded font-semibold transition-colors shadow-sm disabled:opacity-50"
+              >
+                {savingSettings ? 'Saving...' : 'Save Settings'}
               </button>
             </div>
           </div>

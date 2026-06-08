@@ -7,6 +7,7 @@ import base64
 import hashlib
 import io
 import mimetypes
+import re
 import sys
 import time
 from pathlib import Path
@@ -115,6 +116,75 @@ def should_skip_self_copy(content_hash: str) -> bool:
         except Exception as e:
             print(f"Error checking clip_skip.txt: {e}")
     return False
+
+
+def load_ignore_patterns(file_path: Path) -> list:
+    """
+    Load and compile regex ignore patterns from a file.
+
+    Args:
+        file_path (Path): The path to the pattern configuration file.
+
+    Returns:
+        list: List of tuples (pattern_str, compiled_regex)
+    """
+    if not file_path.exists():
+        return []
+
+    patterns = []
+    try:
+        content = file_path.read_text(encoding="utf-8")
+        for line in content.splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            try:
+                patterns.append((stripped, re.compile(stripped)))
+            except re.error as e:
+                print(f"Invalid regex pattern in ignore list '{stripped}': {e}")
+    except Exception as e:
+        print(f"Error reading ignore patterns file '{file_path}': {e}")
+
+    return patterns
+
+
+def should_ignore_content(data: Dict[str, Any], compiled_patterns: list) -> tuple:
+    """
+    Check if the clipboard item should be ignored based on compiled patterns.
+
+    Args:
+        data (Dict[str, Any]): The parsed clipboard data.
+        compiled_patterns (list): List of (pattern_str, compiled_regex) tuples.
+
+    Returns:
+        tuple: (is_ignored, matched_pattern)
+    """
+    if not compiled_patterns:
+        return False, ""
+
+    content_type = data.get("content_type")
+
+    if content_type == "text":
+        content = data.get("content", "")
+        for pattern_str, regex in compiled_patterns:
+            try:
+                if regex.search(content):
+                    return True, pattern_str
+            except Exception as e:
+                print(f"Error executing regex '{pattern_str}': {e}")
+
+    elif content_type == "file":
+        file_path = data.get("file_path", "")
+        if file_path:
+            file_name = Path(file_path).name
+            for pattern_str, regex in compiled_patterns:
+                try:
+                    if regex.search(file_path) or regex.search(file_name):
+                        return True, pattern_str
+                except Exception as e:
+                    print(f"Error executing regex '{pattern_str}': {e}")
+
+    return False, ""
 
 
 def get_clipboard_data() -> Optional[Dict[str, Any]]:
@@ -240,15 +310,41 @@ def run_watcher(poll_interval: float = 0.2) -> None:
     init_db(db)
 
     last_hash = ""
+    ignore_file = config.configs_dir / "clipboard_ignore.txt"
+    compiled_patterns = []
+    last_mtime = None
+
     print(
         f"Watcher active. Monitoring clipboard (interval {poll_interval}s) and saving to: {config.db_path}"
     )
 
     while True:
         try:
+            # Check for ignore patterns updates
+            try:
+                mtime = ignore_file.stat().st_mtime if ignore_file.exists() else 0.0
+                if last_mtime is None or mtime != last_mtime:
+                    compiled_patterns = load_ignore_patterns(ignore_file)
+                    last_mtime = mtime
+            except Exception as e:
+                print(f"Error checking ignore patterns modification time: {e}")
+
             data = get_clipboard_data()
             if data:
                 content_hash = hash_content(data["content"])
+
+                # Check matching ignore patterns
+                is_ignored, matched_pattern = should_ignore_content(
+                    data, compiled_patterns
+                )
+                if is_ignored:
+                    print(
+                        f"Skipped clipboard item matching pattern: '{matched_pattern}'"
+                    )
+                    last_hash = content_hash
+                    time.sleep(poll_interval)
+                    continue
+
                 if content_hash != last_hash:
                     # Check if self-copy skip is requested
                     if should_skip_self_copy(content_hash):

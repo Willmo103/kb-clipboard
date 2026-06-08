@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.10] - 2026-06-08
+### Added
+- Flexible regular expression-based filtering system (`~/.kb/configs/clipboard_ignore.txt`) to automatically skip/discard clipboard history items matching custom user patterns.
+- IPC handlers (`get-ignore-patterns`, `save-ignore-patterns`) for safely reading and saving the configuration file.
+- Monospace settings textarea editor in a clean Settings modal dialog inside the Electron desktop React UI.
+- Automated cache loading in watcher that reloads patterns only if `mtime` of the configuration file changes.
+- Comprehensive unit tests verifying pattern loading, comments/whitespace filtering, text ignore rules, and file path ignore matching.
+
 ## [0.1.8] - 2026-06-06
 ### Fixed
 - Intercepted window minimize events to collapse the app to the system tray.

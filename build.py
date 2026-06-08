@@ -5,16 +5,16 @@ from pathlib import Path
 
 def get_uv_cmd() -> str:
     import shutil
-    
+
     uv_path = shutil.which("uv")
     if uv_path:
         return uv_path
-        
+
     local_bin = Path.home() / ".local" / "bin"
     candidate = local_bin / ("uv.exe" if sys.platform == "win32" else "uv")
     if candidate.exists():
         return str(candidate)
-        
+
     return "uv"
 
 
@@ -80,21 +80,30 @@ def main():
 
     # 1b. Copy compiled Electron executable to package source
     import shutil
+
     dest_dir = project_dir / "src" / "kb_clipboard" / "desktop_dist"
     if dest_dir.exists():
         shutil.rmtree(dest_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
-    
+
     desktop_dist = desktop_dir / "dist"
-    candidates = list(desktop_dist.glob("kb-clipboard*.exe")) + \
-                 list(desktop_dist.glob("kb-clipboard*.AppImage")) + \
-                 list(desktop_dist.glob("kb-clipboard*.dmg"))
+    candidates = (
+        list(desktop_dist.glob("kb-clipboard*.exe"))
+        + list(desktop_dist.glob("kb-clipboard*.AppImage"))
+        + list(desktop_dist.glob("kb-clipboard*.dmg"))
+    )
     # Filter out setup/installer files to ensure we only get the portable executable
     candidates = [p for p in candidates if "setup" not in p.name.lower()]
-    
+
     if not candidates:
-        candidates = [p for p in desktop_dist.iterdir() if p.is_file() and p.suffix in ('.exe', '.AppImage', '.dmg') and "setup" not in p.name.lower()]
-        
+        candidates = [
+            p
+            for p in desktop_dist.iterdir()
+            if p.is_file()
+            and p.suffix in (".exe", ".AppImage", ".dmg")
+            and "setup" not in p.name.lower()
+        ]
+
     if candidates:
         src_exe = candidates[0]
         ext = src_exe.suffix
